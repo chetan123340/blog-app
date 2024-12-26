@@ -1,10 +1,12 @@
 import { Context } from "hono";
 import { PrismaClient } from '@prisma/client/edge'
 import { withAccelerate } from '@prisma/extension-accelerate'
+import {createBlogSchema, updateBlogSchema} from '@chetan_k_p/blog-common'
 
 enum STATUSCODES {
     OK = 200,
-    BAD = 403
+    BAD = 403,
+    MISSING_IP = 411
 }
 
 export const addBlog = async (c:Context) => {
@@ -12,6 +14,12 @@ export const addBlog = async (c:Context) => {
     try {
         const authorId = c.get("authorId")
         const body = await c.req.json()
+
+        const {success} = createBlogSchema.safeParse(body)
+        if (!success) {
+            c.status(STATUSCODES.MISSING_IP)
+            return c.json({mssg: "Missing Inputs"})
+        }
         const blog = await prisma.post.create({
             data: {
                 title: body.title,
@@ -30,6 +38,11 @@ export const updateBlog = async (c:Context) => {
     const prisma = new PrismaClient({datasourceUrl: c.env.DATABASE_URL}).$extends(withAccelerate())
     try {
         const body = await c.req.json()
+        const {success} = updateBlogSchema.safeParse(body)
+        if (!success) {
+            c.status(STATUSCODES.MISSING_IP)
+            return c.json({mssg: "Missing Inputs"})
+        }
         const blog = await prisma.post.update({
             where:{
                 id: body.id,
